@@ -66,6 +66,7 @@ export function validateImport(input) {
     const allowed = ['meal_date','weekday','date_confirmed','meal_type','corner','menus'];
     if (Object.keys(row).some(k => !allowed.includes(k))) fail('지원하지 않는 필드가 있습니다. 불확실한 정보는 먼저 확인하세요.');
     const date = parseDate(row.meal_date);
+    if ([0,6].includes(date.getUTCDay())) fail('주말 휴무이므로 토요일·일요일 식단은 등록하지 않습니다.');
     if (row.date_confirmed !== true) fail('사진의 연·월·일을 확인하고 date_confirmed=true로 표시하세요.');
     if (row.weekday !== '일월화수목금토'[date.getUTCDay()]) fail('날짜와 요일이 다르거나 요일이 없습니다. 추측하지 마세요.');
     if (row.meal_type !== 'lunch') fail('점심만 운영합니다. meal_type은 lunch여야 합니다.');

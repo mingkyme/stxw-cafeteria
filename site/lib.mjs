@@ -11,7 +11,7 @@ export function shiftDate(value, days) {
 }
 export function weekDates(value) {
   const offset = (parseDate(value).getUTCDay() + 6) % 7;
-  return Array.from({ length: 7 }, (_, i) => shiftDate(value, i - offset));
+  return Array.from({ length: 5 }, (_, i) => shiftDate(value, i - offset));
 }
 export function todayKST(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);

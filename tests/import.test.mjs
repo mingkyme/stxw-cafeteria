@@ -12,3 +12,11 @@ test('가져오기: 확정 날짜·요일·끼니·메뉴를 검증하고 DB 열
   assert.throws(() => validateImport({meals: [entry(), entry()]}), /중복/);
   assert.throws(() => validateImport({meals: []}));
 });
+
+test('주말 식단은 가져오기 전에 거부하며 평일 휴무는 보존한다', async () => {
+  const { validateImport } = await import('../scripts/import.mjs');
+  for (const [meal_date,weekday] of [['2026-11-28','토'],['2026-11-29','일']]) {
+    assert.throws(()=>validateImport({meals:[{...entry(),meal_date,weekday}]}), /주말 휴무/);
+  }
+  assert.deepEqual(validateImport({meals:[{...entry(),menus:['휴무']} ]})[0].menus,['휴무']);
+});

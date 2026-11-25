@@ -17,7 +17,11 @@ function drawDay(date, rows) {
   const title = node('h4','day-title',fmt(date));
   if (date === todayKST()) title.append(node('span','today-chip','TODAY'));
   card.append(title);
-  if (!rows.length) {
+  if ([0,6].includes(parseDate(date).getUTCDay())) {
+    const closed = node('div','empty closed');
+    closed.append(node('p','','주말 휴무'),node('small','','토요일·일요일은 운영하지 않습니다.'));
+    card.append(closed);
+  } else if (!rows.length) {
     const empty = node('div','empty');
     const icon = node('span','empty-icon','◌'); icon.setAttribute('aria-hidden','true');
     empty.append(icon,node('p','','등록된 식단이 없습니다.'),node('small','','식단이 확인되면 이곳에 안내됩니다.'));
@@ -49,7 +53,9 @@ async function load() {
   container.replaceChildren(); container.classList.toggle('week',mode === 'week'); container.setAttribute('aria-busy','true');
   status.setAttribute('role','status'); status.textContent = '식단을 불러오는 중입니다…';
   try {
-    const rows = await fetchMeals(dates[0], dates.at(-1), {signal:current.signal});
+    // A weekend is a known closure, independent of stored menus or DB availability.
+    const weekend = dates.length === 1 && [0,6].includes(parseDate(selected).getUTCDay());
+    const rows = weekend ? [] : await fetchMeals(dates[0], dates.at(-1), {signal:current.signal});
     if (current.signal.aborted) return;
     for (const row of rows) {
       if (!dates.includes(row.meal_date) || row.meal_type !== 'lunch' || typeof row.corner !== 'string' || !Array.isArray(row.menus) || !row.menus.every(x => typeof x === 'string')) throw new Error('식단 데이터 형식을 확인할 수 없습니다. 운영자에게 문의해 주세요.');
