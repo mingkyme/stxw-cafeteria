@@ -41,6 +41,45 @@ function drawDay(date, rows) {
   }
   return card;
 }
+function drawWeek(dates, rows) {
+  const wrapper = node('div','week-scroll');
+  wrapper.tabIndex = 0;
+  wrapper.setAttribute('role','region');
+  wrapper.setAttribute('aria-label','주간 식단 표 · 가로로 스크롤');
+  const table = node('table','week-table');
+  table.append(node('caption','sr-only',`${compact(dates[0])} — ${compact(dates.at(-1))} 주간 점심 식단`));
+  const head = node('thead'), headings = node('tr');
+  const columns = dates.map(date => rows.filter(row=>row.meal_date === date).flatMap(row=>row.menus));
+  dates.forEach(date=>{
+    const th = node('th',date === todayKST() ? 'today' : '',fmt(date));
+    th.scope = 'col'; th.id = `day-${date}`;
+    if (date === todayKST()) th.append(node('span','today-chip','TODAY'));
+    headings.append(th);
+  });
+  head.append(headings); table.append(head);
+  const body = node('tbody');
+  const height = Math.max(2,...columns.map(menus=>menus.length));
+  for (let index=0; index<height; index++) {
+    const tr = node('tr');
+    tr.setAttribute('aria-label',index === 0 ? '밥' : index === 1 ? '국/찌개' : `반찬${index-1}`);
+    dates.forEach((date,column)=>{
+      const menus = columns[column];
+      const closed = menus.length === 1 && menus[0] === '휴무';
+      const missing = menus.length === 0;
+      if ((closed || missing) && index > 0) return;
+      const cell = node('td',date === todayKST() ? 'today' : '',closed ? '휴무' : missing ? '미등록' : menus[index] ?? '');
+      cell.setAttribute('headers',`day-${date}`);
+      if (closed || missing) {
+        cell.rowSpan = height;
+        cell.classList.add(closed ? 'closed' : 'unregistered');
+        cell.setAttribute('aria-label',`${fmt(date)} ${closed ? '휴무' : '등록된 식단이 없습니다.'}`);
+      }
+      tr.append(cell);
+    });
+    body.append(tr);
+  }
+  table.append(body); wrapper.append(table); return wrapper;
+}
 async function load() {
   request?.abort(); request = new AbortController(); const current = request;
   const dates = mode === 'week' ? weekDates(selected) : [selected];
@@ -60,7 +99,7 @@ async function load() {
     for (const row of rows) {
       if (!dates.includes(row.meal_date) || row.meal_type !== 'lunch' || typeof row.corner !== 'string' || !Array.isArray(row.menus) || !row.menus.every(x => typeof x === 'string')) throw new Error('식단 데이터 형식을 확인할 수 없습니다. 운영자에게 문의해 주세요.');
     }
-    container.replaceChildren(...dates.map(date => drawDay(date, rows.filter(row=>row.meal_date === date))));
+    container.replaceChildren(...(mode === 'week' ? [drawWeek(dates,rows)] : dates.map(date => drawDay(date, rows.filter(row=>row.meal_date === date)))));
     status.textContent = '';
   } catch (error) {
     if (current.signal.aborted) return;

@@ -12,7 +12,7 @@ test('오늘·날짜·주간 읽기 전용 탐색과 빈 상태, 모바일 폭',
   await expect(page.getByLabel('기준 날짜')).toHaveValue('2026-11-25');
   await expect(page.getByText('등록된 식단이 없습니다.',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'주간',exact:true}).click();
-  await expect(page.locator('.day-card')).toHaveCount(5);
+  await expect(page.locator('thead th[scope=col]')).toHaveCount(5);
   await expect(page.locator('#period')).toContainText('11.23');
   await page.getByLabel('기준 날짜').fill('2026-12-31');
   await expect(page.locator('#period')).toContainText('2027');
@@ -62,25 +62,67 @@ test('범위 밖 URL 날짜는 안전한 기본 날짜로 돌아간다', async (
   await page.route('https://xyjkxyyvslrhksiwzkph.supabase.co/rest/v1/meals?*', route => route.fulfill({status:200,contentType:'application/json',body:'[]'}));
   await page.goto('/?date=2000-01-01&view=week');
   await expect(page.getByLabel('기준 날짜')).toHaveValue('2026-11-25');
-  await expect(page.locator('.day-card')).toHaveCount(5);
+  await expect(page.locator('thead th[scope=col]')).toHaveCount(5);
   expect(errors).toEqual([]);
 });
 
-// Synthetic empty response only: no production meal fixtures or writes.
-test('일요일 기준 주간은 월~금 다섯 카드를 한 열로 세로 배치한다', async ({page}) => {
-  await page.route('https://xyjkxyyvslrhksiwzkph.supabase.co/rest/v1/meals?*', route => route.fulfill({status:200,contentType:'application/json',body:'[]'}));
+// Synthetic browser responses only: no production meal fixtures or writes.
+test('주간은 정확히 월~금 다섯 열이며 밥·국 원본 순서가 가로로 정렬된다', async ({page}, testInfo) => {
+  await page.clock.install({time:new Date('2026-11-25T03:00:00Z')});
+  const days = ['23','24','25','26','27'];
+  const rows = days.map(day=>({meal_date:`2026-11-${day}`,meal_type:'lunch',corner:'점심',menus:[`밥${day}`,`국${day}`,`찬${day}`]}));
+  await page.route('https://xyjkxyyvslrhksiwzkph.supabase.co/rest/v1/meals?*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(rows)}));
   await page.goto('/?date=2026-11-29&view=week');
-  await expect(page.locator('.day-card')).toHaveCount(5);
-  await expect(page.locator('#period')).toHaveText('2026.11.23 — 2026.11.27');
-  const titles = await page.locator('.day-title').allTextContents();
-  expect(titles.map(title=>title.match(/[월화수목금토일](?=\))/)?.[0])).toEqual(['월','화','수','목','금']);
-  const boxes = await page.locator('.day-card').evaluateAll(cards=>cards.map(card=>{const r=card.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,bottom:r.bottom};}));
-  for (let i=1;i<boxes.length;i++) {
-    expect(boxes[i].x).toBeCloseTo(boxes[0].x,0);
-    expect(boxes[i].width).toBeCloseTo(boxes[0].width,0);
-    expect(boxes[i].y).toBeGreaterThan(boxes[i-1].bottom);
+  const table = page.getByRole('table');
+  await expect(table).toHaveAccessibleName('2026.11.23 — 2026.11.27 주간 점심 식단');
+  await expect(table.locator('thead th[scope=col]')).toHaveCount(5);
+  expect((await table.locator('thead th').allTextContents()).map(title=>title.match(/[월화수목금토일](?=\))/)?.[0])).toEqual(['월','화','수','목','금']);
+  await expect(table.locator('tbody th')).toHaveCount(0);
+  await expect(table.getByText(/^(구분|밥|국\/찌개|반찬\d+)$/)).toHaveCount(0);
+  for (const [i,prefix] of ['밥','국','찬'].entries()) {
+    const cells = table.locator('tbody tr').nth(i).locator('td');
+    await expect(cells).toHaveText(days.map(day=>`${prefix}${day}`));
+    const boxes = await cells.evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y};}));
+    for(let j=1;j<boxes.length;j++) { expect(boxes[j].y).toBeCloseTo(boxes[0].y,0); expect(boxes[j].x).toBeGreaterThan(boxes[j-1].x); }
   }
+  await expect(table.locator('thead th.today')).toContainText('TODAY');
+  await expect(table.locator('tbody td.today')).toHaveCount(3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  if(testInfo.project.name==='mobile') {
+    expect(await page.locator('.week-scroll').evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
+    await page.locator('.week-scroll').evaluate(el=>el.scrollLeft=el.scrollWidth);
+    await expect(table.getByText('밥27',{exact:true})).toBeInViewport();
+  }
+  await page.screenshot({path:testInfo.outputPath('weekly-table.png'),fullPage:true});
+});
+
+test('6·9개 메뉴 원본을 모두 보존하고 휴무·미등록은 음식 행과 구별한다', async ({page}, testInfo) => {
+  const six = ['월 밥','월 국','월 찬1','월 찬2','월 찬3','월 찬4'];
+  const nine = ['수 볶음밥','수 국','수 찬1','수 찬2','수 찬3','수 찬4','수 찬5','수 찬6','<img src=x onerror=alert(1)>'];
+  const rows = [['23',six],['24',['휴무']],['25',nine],['27',six.map(x=>x.replace('월','금'))]].map(([day,menus])=>({meal_date:`2026-11-${day}`,meal_type:'lunch',corner:'합성 코너',menus}));
+  const methods=[];
+  await page.route('https://xyjkxyyvslrhksiwzkph.supabase.co/rest/v1/meals?*', route=>{
+    methods.push(route.request().method());
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(rows)});
+  });
+  await page.goto('/?date=2026-11-25&view=week');
+  const table = page.getByRole('table');
+  await expect(table.locator('tbody tr')).toHaveCount(9);
+  for (const [column,menus] of [[0,six],[2,nine],[4,rows[3].menus]]) {
+    const values = await table.locator(`tbody td[headers="day-2026-11-${['23','24','25','26','27'][column]}"]`).allTextContents();
+    expect(values).toEqual([...menus,...Array(9-menus.length).fill('')]);
+  }
+  const closure = table.locator('td.closed');
+  await expect(closure).toHaveText('휴무');
+  await expect(closure).toHaveAttribute('rowspan','9');
+  await expect(closure).toHaveAttribute('aria-label','11월 24일 (화) 휴무');
+  const missing = table.locator('td.unregistered');
+  await expect(missing).toHaveText('미등록');
+  await expect(missing).toHaveAttribute('rowspan','9');
+  await expect(table.locator('img')).toHaveCount(0);
+  expect(methods).toEqual(['GET']);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('mixed-week.png'),fullPage:true});
 });
 
 for (const date of ['2026-11-28','2026-11-29']) {
