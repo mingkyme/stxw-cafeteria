@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f5ec">
+  <meta name="description" content="stxw 타워 구내식당의 점심 식단을 오늘, 날짜별, 주간으로 확인하세요.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://xyjkxyyvslrhksiwzkph.supabase.co; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+  <title>stxw 타워 구내식당</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#content">식단으로 바로가기</a>
+  <div class="shell">
+    <header class="topbar"><a class="brand" href="./" aria-label="처음으로"><span class="brand-mark" aria-hidden="true">↗</span> STXW <span class="brand-sub">LUNCH TABLE</span></a><span class="read-badge"><span></span> 식단 안내</span></header>
+    <main id="content">
+      <section class="hero" aria-labelledby="title">
+        <div><p class="eyebrow">A LITTLE BREAK, A GOOD LUNCH</p><h1 id="title">stxw 타워 구내식당</h1><p class="intro">오늘 점심, 무엇이 나올까요?<br>한 끼의 작은 즐거움을 미리 만나보세요.</p></div>
+        <div class="plate" aria-hidden="true"><div class="plate-inner"><span class="leaf">✳</span><span class="plate-caption">오늘도<br>맛있는 하루</span></div><span class="plate-note">점심 식단</span></div>
+      </section>
+      <section class="menu-section" aria-label="점심 식단 조회">
+        <div class="section-top"><h2>점심 메뉴 <span>LUNCH</span></h2><p>한국 시간 · KST</p></div>
+        <div class="toolbar">
+          <div class="view-switch" role="group" aria-label="식단 보기 방식"><button id="today" type="button" aria-pressed="true">오늘</button><button id="date-view" type="button" aria-pressed="false">날짜별</button><button id="week" type="button" aria-pressed="false">주간</button></div>
+          <div class="date-control"><button id="prev" class="arrow" type="button" aria-label="이전 날짜">←</button><label for="date" class="sr-only">기준 날짜</label><input id="date" type="date" min="2000-01-07" max="2100-12-25" required><button id="next" class="arrow" type="button" aria-label="다음 날짜">→</button></div>
+        </div>
+        <div class="period-line"><h3 id="period"></h3><button id="refresh" class="refresh" type="button">새로고침 ↻</button></div>
+        <p id="status" role="status" aria-live="polite"></p>
+        <div id="meals" class="meals" aria-busy="true"></div>
+        <p class="notice">식단은 현장 사정에 따라 변경될 수 있습니다.<br class="mobile-break"> 등록되지 않은 날짜는 운영 여부를 확인해 주세요.</p>
+      </section>
+    </main>
+    <footer><span>stxw 타워 구내식당</span><span>가볍게 확인하고, 맛있게 드세요.</span></footer>
+  </div>
+  <noscript>식단을 조회하려면 브라우저에서 JavaScript를 켜 주세요.</noscript>
+</body>
+</html>
